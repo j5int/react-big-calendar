@@ -56,6 +56,7 @@ let DaySlot = React.createClass({
     endAccessor: accessor.isRequired,
 
     selectable: React.PropTypes.bool,
+    onBackgroundClick: React.PropTypes.func,
     eventOffset: React.PropTypes.number,
 
     onSelecting: React.PropTypes.func,
@@ -71,8 +72,10 @@ let DaySlot = React.createClass({
 
 
   componentDidMount() {
-    this.props.selectable
-    && this._selectable()
+    if (this.props.selectable || this.props.onBackgroundClick) {
+      const backgroundClickOnly = this.props.selectable ? false : true
+      this._selectable(backgroundClickOnly)
+    }
     this._setReferenceDates()
   },
 
@@ -81,9 +84,11 @@ let DaySlot = React.createClass({
   },
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.selectable && !this.props.selectable)
-      this._selectable();
-    if (!nextProps.selectable && this.props.selectable)
+    if ((nextProps.selectable || nextProps.onBackgroundClick) && !(this.props.selectable || this.props.onBackgroundClick)) {
+      const backgroundClickOnly = nextProps.selectable ? false : true
+      this._selectable(backgroundClickOnly)
+    }
+    if (!(nextProps.selectable || nextProps.onBackgroundClick) && (this.props.selectable || this.props.onBackgroundClick))
       this._teardownSelectable();
     this._setReferenceDates()
   },
@@ -228,9 +233,17 @@ let DaySlot = React.createClass({
     }
   },
 
-  _selectable(){
+  _selectable(backgroundClickOnly){
     let node = findDOMNode(this);
     let selector = this._selector = new Selection(()=> findDOMNode(this))
+
+    if (backgroundClickOnly) {
+      selector
+        .on('click', point => {
+          this.props.onBackgroundClick(point)
+        })
+      return
+    }
 
     let maybeSelect = (box) => {
       let onSelecting = this.props.onSelecting
@@ -292,6 +305,7 @@ let DaySlot = React.createClass({
 
     selector
       .on('click', ({ x, y }) => {
+        this.props.onBackgroundClick && this.props.onBackgroundClick()
         this._clickTimer = setTimeout(()=> {
           this._selectSlot(selectionState({ x, y }))
         })

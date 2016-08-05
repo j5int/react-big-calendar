@@ -158,6 +158,16 @@ let Calendar = React.createClass({
     selectable: PropTypes.bool,
 
     /**
+     * Callback fired when a background cell is clicked regardless of whether the calendar is in the selectable state or not.
+     * (This callback will be fired before with onSelectSlot (in the event of a click) when in selectable mode)
+     *
+     * ```js
+     * function(point: object)
+     * ```
+     */
+    onBackgroundClick: PropTypes.func,
+
+    /**
      * Determines the selectable time increments in week and day views
      */
     step: React.PropTypes.number,

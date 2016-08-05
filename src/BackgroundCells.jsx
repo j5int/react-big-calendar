@@ -10,6 +10,7 @@ class DisplayCells extends React.Component {
 
   static propTypes = {
     selectable: React.PropTypes.bool,
+    onBackgroundClick: React.PropTypes.func,
     onSelect: React.PropTypes.func,
     slots: React.PropTypes.number
   }
@@ -17,8 +18,10 @@ class DisplayCells extends React.Component {
   state = { selecting: false }
 
   componentDidMount(){
-    this.props.selectable
-      && this._selectable()
+    if (this.props.selectable || this.props.onBackgroundClick) {
+      const backgroundClickOnly = this.props.selectable ? false : true
+      this._selectable(backgroundClickOnly)
+    }
   }
 
   componentWillUnmount() {
@@ -26,9 +29,12 @@ class DisplayCells extends React.Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.selectable && !this.props.selectable)
-      this._selectable();
-    if (!nextProps.selectable && this.props.selectable)
+    if ((nextProps.selectable || nextProps.onBackgroundClick) && !(this.props.selectable || this.props.onBackgroundClick)) {
+      const backgroundClickOnly = nextProps.selectable ? false : true
+      // Will this work since _selectable makes reference to this.props which at this stage is the previous ones?
+      this._selectable(backgroundClickOnly)
+    }
+    if (!(nextProps.selectable || nextProps.onBackgroundClick) && (this.props.selectable || this.props.onBackgroundClick))
       this._teardownSelectable();
   }
 
@@ -57,9 +63,17 @@ class DisplayCells extends React.Component {
     )
   }
 
-  _selectable(){
+  _selectable(backgroundClickOnly){
     let node = findDOMNode(this);
     let selector = this._selector = new Selection(this.props.container)
+
+    if (backgroundClickOnly) {
+      selector
+        .on('click', point => {
+          this.props.onBackgroundClick(point)
+        })
+      return
+    }
 
     selector.on('selecting', box => {
       let { slots } = this.props;
@@ -89,6 +103,7 @@ class DisplayCells extends React.Component {
 
     selector
       .on('click', point => {
+        this.props.onBackgroundClick && this.props.onBackgroundClick(point);
         let rowBox = getBoundsForNode(node)
 
         if (pointInBox(rowBox, point)) {

@@ -217,7 +217,7 @@ let DaySlot = React.createClass({
 
     let top = ((startSlot / this._totalMin) * 100);
     let bottom = ((endSlot / this._totalMin) * 100);
-    let per = leftOffset === 0 ? 0 : leftOffset * eventOffset;
+    let per = leftOffset === 0 ? 0 : (leftOffset * eventOffset) % 100;
     let rightDiff = (eventOffset / (leftOffset + 1));
 
     return {

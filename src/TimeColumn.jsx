@@ -35,6 +35,7 @@ export default class TimeColumn extends Component {
         showLabels={this.props.showLabels}
         timeGutterFormat={this.props.timeGutterFormat}
         value={date}
+	    culture={this.props.culture}
       />
     )
   }

@@ -25,6 +25,20 @@ import {
 
 const MIN_ROWS = 2;
 
+function getDateProps() {
+  let min = dates.startOf(new Date(), 'day')
+  let max = dates.endOf(new Date(), 'day')
+  while (true) {
+    if (min.getTimezoneOffset() != max.getTimezoneOffset()) {
+        min = dates.add(min, 1, 'day')
+        max = dates.add(max, 1, 'day')
+    } else {
+      break;
+    }
+  }
+  return {min, max, scrollToTime: min}
+}
+
 
 export default class TimeGrid extends Component {
 
@@ -45,9 +59,7 @@ export default class TimeGrid extends Component {
     ...TimeColumn.defaultProps,
 
     step: 30,
-    min: dates.startOf(new Date(), 'day'),
-    max: dates.endOf(new Date(), 'day'),
-    scrollToTime: dates.startOf(new Date(), 'day'),
+    ...getDateProps(),
     /* these 2 are needed to satisfy requirements from TimeColumn required props
      * There is a strange bug in React, using ...TimeColumn.defaultProps causes weird crashes
      */
@@ -93,6 +105,21 @@ export default class TimeGrid extends Component {
     }
   }
 
+  _getTimeSlots(min, max, step) {
+    let offset = 0
+    const totalMin = dates.diff(min, max, 'minutes')
+    let slots = []
+    while (offset < totalMin) {
+      const offsetHours = Math.floor(offset/60)
+      const offsetMinutes = offset % 60
+      const slotLabel = localizer.format(new Date(min.valueOf() + 60*1000*offset),
+          this.props.timeGutterFormat, this.props.culture)
+      slots.push({offset, hours: offsetHours, minutes: offsetMinutes, totalMin, slotLabel})
+      offset += step
+    }
+    return slots
+  }
+
   render() {
     let {
         events, start, end, width
@@ -132,6 +159,8 @@ export default class TimeGrid extends Component {
 
     let gutterRef = ref => this._gutters[1] = ref && findDOMNode(ref);
 
+    const slots = this._getTimeSlots(this.props.min, this.props.max, this.props.step)
+
     return (
       <div className='rbc-time-view'>
         {
@@ -141,19 +170,20 @@ export default class TimeGrid extends Component {
           <TimeColumn
             {...this.props}
             showLabels
+            slotCollection={{start: this.props.min, end: this.props.max, slots}}
             style={{ width }}
             ref={gutterRef}
             className='rbc-time-gutter'
           />
           {
-            this.renderEvents(range, rangeEvents, this.props.now)
+            this.renderEvents(range, slots, rangeEvents, this.props.now)
           }
         </div>
       </div>
     );
   }
 
-  renderEvents(range, events, today){
+  renderEvents(range, slots, events, today){
     let { min, max, endAccessor, startAccessor, components } = this.props;
 
     return range.map((date, idx) => {
@@ -168,6 +198,7 @@ export default class TimeGrid extends Component {
           {...this.props }
           min={dates.merge(date, min)}
           max={dates.merge(date, max)}
+          slots={slots}
           eventComponent={components.event}
           className={cn({ 'rbc-now': dates.eq(date, today, 'day') })}
           style={segStyle(1, this._slots)}

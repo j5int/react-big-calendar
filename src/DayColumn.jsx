@@ -69,6 +69,7 @@ let DaySlot = React.createClass({
   componentDidMount() {
     this.props.selectable
     && this._selectable()
+    this._setReferenceDates()
   },
 
   componentWillUnmount() {
@@ -80,12 +81,32 @@ let DaySlot = React.createClass({
       this._selectable();
     if (!nextProps.selectable && this.props.selectable)
       this._teardownSelectable();
+    this._setReferenceDates()
+  },
+
+  _setReferenceDates() {
+    let min = new Date(this.props.min), max = new Date(this.props.max)
+    while (true) {
+      if (min.getTimezoneOffset() != max.getTimezoneOffset()) {
+          min = dates.add(min, 1, 'day')
+          max = dates.add(max, 1, 'day')
+      }
+      break;
+    }
+    this.referenceMin = min
+    this.referenceMax = max
+    this._totalMin = dates.diff(this.referenceMin, this.referenceMax, 'minutes')
+  },
+
+  _processTimeSlots(slots) {
+    // A method to check whether there are any timezone changes
+    // or other noteworthy things within a slot.
+    // Currently we don't have a timezone setting and so we are not able to do this processing.
+    return slots
   },
 
   render() {
     const {
-      min,
-      max,
       step,
       timeslots,
       now,
@@ -93,7 +114,6 @@ let DaySlot = React.createClass({
       culture,
       ...props
     } = this.props
-    this._totalMin = dates.diff(min, max, 'minutes')
 
     let { selecting, startSlot, endSlot } = this.state
       , style = this._slotStyle(startSlot, endSlot, 0)
@@ -103,13 +123,15 @@ let DaySlot = React.createClass({
       end: this.state.endDate
     };
 
+    const slotCollection = { start: this.referenceMin, end: this.referenceMax,
+      slots: this._processTimeSlots(this.props.slots.slice(0, this.props.slots.length)) }
+
     return (
       <TimeColumn {...props}
         className='rbc-day-slot'
         timeslots={timeslots}
+        slotCollection={slotCollection}
         now={now}
-        min={min}
-        max={max}
         step={step}
       >
         {this.renderEvents()}
@@ -127,7 +149,7 @@ let DaySlot = React.createClass({
 
   renderEvents() {
     let {
-      events, step, min, culture, eventPropGetter
+      events, culture, eventPropGetter
       , selected, eventTimeRangeFormat, eventComponent
       , startAccessor, endAccessor, titleAccessor } = this.props;
 
@@ -139,8 +161,8 @@ let DaySlot = React.createClass({
     return events.map((event, idx) => {
       let start = get(event, startAccessor)
       let end = get(event, endAccessor)
-      let startSlot = positionFromDate(start, min, step);
-      let endSlot = positionFromDate(end, min, step);
+      let startSlot = positionFromDate(start, this.referenceMin);
+      let endSlot = positionFromDate(end, this.referenceMin);
 
       lastLeftOffset = Math.max(0,
         overlaps(event, events.slice(0, idx), this.props, lastLeftOffset + 1))
@@ -220,7 +242,7 @@ let DaySlot = React.createClass({
     }
 
     let selectionState = ({ y }) => {
-      let { step, min, max } = this.props;
+      let { step } = this.props;
       let { top, bottom } = getBoundsForNode(node)
 
       let mins = this._totalMin;
@@ -229,7 +251,7 @@ let DaySlot = React.createClass({
 
       let current = (y - top) / range;
 
-      current = snapToSlot(minToDate(mins * current, min), step)
+      current = snapToSlot(minToDate(mins * current, this.referenceMin), step)
 
       if (!this.state.selecting)
         this._initialDateSlot = current
@@ -239,15 +261,20 @@ let DaySlot = React.createClass({
       if (dates.eq(initial, current, 'minutes'))
         current = dates.add(current, step, 'minutes')
 
-      let start = dates.max(min, dates.min(initial, current))
-      let end = dates.min(max, dates.max(initial, current))
+      let start = dates.max(this.referenceMin, dates.min(initial, current))
+      let end = dates.min(this.referenceMax, dates.max(initial, current))
 
+      let startDate = start, endDate = end
+      if (this.props.min != this.referenceMin) {
+        startDate = dates.merge(this.props.min, start)
+        endDate = dates.merge(this.props.min, end)
+      }
       return {
         selecting: true,
-        startDate: start,
-        endDate: end,
-        startSlot: positionFromDate(start, min, step),
-        endSlot: positionFromDate(end, min, step)
+        startDate,
+        endDate,
+        startSlot: positionFromDate(start, this.referenceMin, step),
+        endSlot: positionFromDate(end, this.referenceMin, step)
       }
     }
 

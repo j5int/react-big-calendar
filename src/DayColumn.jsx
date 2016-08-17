@@ -154,7 +154,7 @@ let DaySlot = React.createClass({
   renderEvents() {
     let {
       events, culture, eventPropGetter
-      , selected, eventTimeRangeFormat, eventComponent
+      , selected, eventTimeRangeFormat, timeGutterFormat, eventComponent
       , startAccessor, endAccessor, titleAccessor } = this.props;
 
     let EventComponent = eventComponent
@@ -174,7 +174,12 @@ let DaySlot = React.createClass({
       let style = this._slotStyle(startSlot, endSlot, lastLeftOffset)
 
       let title = get(event, titleAccessor)
-      let label = localizer.format({ start, end }, eventTimeRangeFormat, culture);
+      let label
+      if (start.valueOf() != end.valueOf()) {
+        label = localizer.format({ start, end }, eventTimeRangeFormat, culture);
+      } else {
+        label = localizer.format(start, timeGutterFormat, culture);
+      }
       let _isSelected = isSelected(event, selected);
 
       if (eventPropGetter)

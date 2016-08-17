@@ -22,12 +22,16 @@ function positionFromDate(date, min){
   return dates.diff(min, dates.merge(min, date), 'minutes')
 }
 
-function overlaps(event, events, { startAccessor, endAccessor }, last) {
+function overlaps(event, events, { startAccessor, endAccessor, step }, last) {
   let eStart = get(event, startAccessor);
   let offset = last;
 
   function overlap(eventB){
-    return dates.lt(eStart, get(eventB, endAccessor))
+    // Since the rendering of events has a minimum layout size (1 step),
+    // we need to take this into account in determining the overlaps.
+    let eventBStart = get(eventB, startAccessor)
+    let eventBEnd = Math.max(get(eventB, endAccessor), new Date(eventBStart.valueOf() + 60*1000*step))
+    return dates.lt(eStart, eventBEnd)
   }
 
   if (!events.length) return last - 1

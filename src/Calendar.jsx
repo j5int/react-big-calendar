@@ -53,6 +53,12 @@ let now = new Date();
 let Calendar = React.createClass({
 
   propTypes: {
+
+    /**
+     * Props passed to main calendar <div>.
+     */
+    elementProps: PropTypes.object,
+
     /**
      * The current date value of the calendar. Determines the visible view range
      *
@@ -334,6 +340,7 @@ let Calendar = React.createClass({
 
   getDefaultProps() {
     return {
+      elementProps: {},
       popup: false,
       toolbar: true,
       view: views.MONTH,
@@ -382,6 +389,7 @@ let Calendar = React.createClass({
       , formats = {}
       , style
       , className
+      , elementProps
       , date: current
       , ...props } = this.props;
 
@@ -389,8 +397,6 @@ let Calendar = React.createClass({
 
     let View = this.getView();
     let names = viewNames(this.props.views)
-
-    let elementProps = omit(this.props, Object.keys(Calendar.propTypes))
 
     let viewComponents = defaults(
       components[view] || {},
@@ -400,7 +406,8 @@ let Calendar = React.createClass({
     let ToolbarToRender = components.toolbar || Toolbar
 
     return (
-      <div {...elementProps}
+      <div
+        {...elementProps}
         className={cn('rbc-calendar', className, {
           'rbc-rtl': props.rtl
         })}

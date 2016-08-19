@@ -25,6 +25,20 @@ import {
 
 const MIN_ROWS = 2;
 
+function getDateProps() {
+  let min = dates.startOf(new Date(), 'day')
+  let max = dates.endOf(new Date(), 'day')
+  while (true) {
+    if (min.getTimezoneOffset() != max.getTimezoneOffset()) {
+        min = dates.add(min, 1, 'day')
+        max = dates.add(max, 1, 'day')
+    } else {
+      break;
+    }
+  }
+  return {min, max, scrollToTime: min}
+}
+
 
 export default class TimeGrid extends Component {
 
@@ -45,9 +59,7 @@ export default class TimeGrid extends Component {
     ...TimeColumn.defaultProps,
 
     step: 30,
-    min: dates.startOf(new Date(), 'day'),
-    max: dates.endOf(new Date(), 'day'),
-    scrollToTime: dates.startOf(new Date(), 'day'),
+    ...getDateProps(),
     /* these 2 are needed to satisfy requirements from TimeColumn required props
      * There is a strange bug in React, using ...TimeColumn.defaultProps causes weird crashes
      */
@@ -93,6 +105,40 @@ export default class TimeGrid extends Component {
     }
   }
 
+  _getTimeSlots(min, max, step) {
+    const now = new Date()
+    const nowHours = now.getHours()
+    const nowMinutes = now.getHours()
+    let offset = 0
+    const totalMin = dates.diff(min, max, 'minutes')
+    let slots = []
+    while (offset < totalMin) {
+      const offsetHours = Math.floor(offset/60)
+      const offsetMinutes = offset % 60
+      const slotLabel = localizer.format(new Date(min.valueOf() + 60*1000*offset),
+          this.props.timeGutterFormat, this.props.culture)
+      const nextOffsetHours = Math.floor((offset + step)/60)
+      const nextOffsetMinutes = (offset + step) % 60
+      const containsNowTime = ((nowHours >= offsetHours) && (nowHours <= nextOffsetHours)) &&
+              ((nowMinutes >= offsetMinutes) && (nowMinutes < nextOffsetMinutes))
+      slots.push({offset, hours: offsetHours, minutes: offsetMinutes, slotLabel, containsNowTime})
+      offset += step
+    }
+    return slots
+  }
+
+  _getSlotCollection(slots) {
+    const now = new Date()
+    const start = dates.merge(now, this.props.min)
+    const end = dates.merge(now, this.props.max)
+    const rangeContainsTzChange = start.getTimezoneOffset() != end.getTimezoneOffset()
+    return {
+      start,
+      end,
+      rangeContainsTzChange,
+      slots}
+  }
+
   render() {
     let {
         events, start, end, width
@@ -132,6 +178,8 @@ export default class TimeGrid extends Component {
 
     let gutterRef = ref => this._gutters[1] = ref && findDOMNode(ref);
 
+    const slots = this._getTimeSlots(this.props.min, this.props.max, this.props.step)
+    const slotCollection = this._getSlotCollection(slots)
     return (
       <div className='rbc-time-view'>
         {
@@ -141,19 +189,20 @@ export default class TimeGrid extends Component {
           <TimeColumn
             {...this.props}
             showLabels
+            slotCollection={slotCollection}
             style={{ width }}
             ref={gutterRef}
             className='rbc-time-gutter'
           />
           {
-            this.renderEvents(range, rangeEvents, this.props.now)
+            this.renderEvents(range, slots, rangeEvents, this.props.now)
           }
         </div>
       </div>
     );
   }
 
-  renderEvents(range, events, today){
+  renderEvents(range, slots, events, today){
     let { min, max, endAccessor, startAccessor, components } = this.props;
 
     return range.map((date, idx) => {
@@ -168,6 +217,7 @@ export default class TimeGrid extends Component {
           {...this.props }
           min={dates.merge(date, min)}
           max={dates.merge(date, max)}
+          slots={slots}
           eventComponent={components.event}
           className={cn({ 'rbc-now': dates.eq(date, today, 'day') })}
           style={segStyle(1, this._slots)}
@@ -242,6 +292,7 @@ export default class TimeGrid extends Component {
               slots={range.length}
               container={()=> this.refs.allDay}
               selectable={this.props.selectable}
+              onBackgroundClick={this.props.onBackgroundClick}
             />
             <div style={{ zIndex: 1, position: 'relative' }}>
               { this.renderAllDayEvents(range, levels) }

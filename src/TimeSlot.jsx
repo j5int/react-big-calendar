@@ -3,30 +3,30 @@ import cn from 'classnames'
 
 export default class TimeSlot extends Component {
   static propTypes = {
-    value: PropTypes.instanceOf(Date).isRequired,
+    slotInfo: PropTypes.object.isRequired,
     isNow: PropTypes.bool,
     showLabel: PropTypes.bool,
-    content: PropTypes.string,
-    culture: PropTypes.string
   }
 
   static defaultProps = {
     isNow: false,
     showLabel: false,
-    content: ''
   }
 
   render() {
+    const slotLabel = this.props.slotInfo.slotLabel
     return (
       <div
         className={cn(
           'rbc-time-slot',
-          this.props.showLabel && 'rbc-label',
-          this.props.isNow && 'rbc-now',
+          {
+          'rbc-label': this.props.showLabel,
+          'rbc-now': this.props.isNow
+          }
         )}
       >
       {this.props.showLabel &&
-        <span>{this.props.content}</span>
+        <span>{slotLabel}</span>
       }
       </div>
     )

@@ -8,12 +8,10 @@ import TimeSlotGroup from './TimeSlotGroup'
 export default class TimeColumn extends Component {
   static propTypes = {
     step: PropTypes.number.isRequired,
-    timeslots: PropTypes.number.isRequired,
+    timeslots: PropTypes.number.isRequired, // I'd like to deprecate this since it's a bit confusing, replacing it with numSlotsPerGroup.
     now: PropTypes.instanceOf(Date).isRequired,
-    min: PropTypes.instanceOf(Date).isRequired,
-    max: PropTypes.instanceOf(Date).isRequired,
+    slotCollection: PropTypes.object,
     showLabels: PropTypes.bool,
-    timeGutterFormat: PropTypes.string,
     type: PropTypes.string.isRequired,
     className: PropTypes.string
   }
@@ -25,42 +23,30 @@ export default class TimeColumn extends Component {
     className: ''
   }
 
-  renderTimeSliceGroup(key, isNow, date) {
+  renderTimeSliceGroup(key, isNow, slots) {
     return (
       <TimeSlotGroup
         key={key}
         isNow={isNow}
-        timeslots={this.props.timeslots}
-        step={this.props.step}
         showLabels={this.props.showLabels}
-        timeGutterFormat={this.props.timeGutterFormat}
-        value={date}
+        slots={slots}
       />
     )
   }
 
   render() {
-    const totalMin = dates.diff(this.props.min, this.props.max, 'minutes')
-    const numGroups = Math.ceil(totalMin / (this.props.step * this.props.timeslots))
+    const totalSlots = this.props.slotCollection.slots.length
+    const numSlotsPerGroup = this.props.timeslots
     const timeslots = []
-    const groupLengthInMinutes = this.props.step * this.props.timeslots
-
-    let date = this.props.min
-    let next = date
     let isNow = false
-
-    for (var i = 0; i < numGroups; i++) {
-      isNow = dates.inRange(
-          this.props.now
-        , date
-        , dates.add(next, groupLengthInMinutes - 1, 'minutes')
-        , 'minutes'
-      )
-
-      next = dates.add(date, groupLengthInMinutes, 'minutes');
-      timeslots.push(this.renderTimeSliceGroup(i, isNow, date))
-
-      date = next
+    const { start, end } = this.props.slotCollection
+    const isToday = dates.inRange(this.props.now, start, end, 'day')
+    for (var i = 0; i < totalSlots; i+=numSlotsPerGroup) {
+      const slotSlice = this.props.slotCollection.slots.slice(i, i + numSlotsPerGroup)
+      if (isToday) {
+        isNow = slotSlice.some(slot => slot.containsNowTime)
+      }
+      timeslots.push(this.renderTimeSliceGroup(i, isNow, slotSlice))
     }
 
     return (

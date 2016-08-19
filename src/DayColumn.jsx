@@ -22,12 +22,16 @@ function positionFromDate(date, min){
   return dates.diff(min, dates.merge(min, date), 'minutes')
 }
 
-function overlaps(event, events, { startAccessor, endAccessor }, last) {
+function overlaps(event, events, { startAccessor, endAccessor, step }, last) {
   let eStart = get(event, startAccessor);
   let offset = last;
 
   function overlap(eventB){
-    return dates.lt(eStart, get(eventB, endAccessor))
+    // Since the rendering of events has a minimum layout size (1 step),
+    // we need to take this into account in determining the overlaps.
+    let eventBStart = get(eventB, startAccessor)
+    let eventBEnd = Math.max(get(eventB, endAccessor), new Date(eventBStart.valueOf() + 60*1000*step))
+    return dates.lt(eStart, eventBEnd)
   }
 
   if (!events.length) return last - 1
@@ -52,6 +56,7 @@ let DaySlot = React.createClass({
     endAccessor: accessor.isRequired,
 
     selectable: React.PropTypes.bool,
+    onBackgroundClick: React.PropTypes.func,
     eventOffset: React.PropTypes.number,
 
     onSelecting: React.PropTypes.func,
@@ -67,8 +72,11 @@ let DaySlot = React.createClass({
 
 
   componentDidMount() {
-    this.props.selectable
-    && this._selectable()
+    if (this.props.selectable || this.props.onBackgroundClick) {
+      const backgroundClickOnly = this.props.selectable ? false : true
+      this._selectable(backgroundClickOnly)
+    }
+    this._setReferenceDates()
   },
 
   componentWillUnmount() {
@@ -76,16 +84,38 @@ let DaySlot = React.createClass({
   },
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.selectable && !this.props.selectable)
-      this._selectable();
-    if (!nextProps.selectable && this.props.selectable)
+    if ((nextProps.selectable || nextProps.onBackgroundClick) && !(this.props.selectable || this.props.onBackgroundClick)) {
+      const backgroundClickOnly = nextProps.selectable ? false : true
+      this._selectable(backgroundClickOnly)
+    }
+    if (!(nextProps.selectable || nextProps.onBackgroundClick) && (this.props.selectable || this.props.onBackgroundClick))
       this._teardownSelectable();
+    this._setReferenceDates()
+  },
+
+  _setReferenceDates() {
+    let min = new Date(this.props.min), max = new Date(this.props.max)
+    while (true) {
+      if (min.getTimezoneOffset() != max.getTimezoneOffset()) {
+          min = dates.add(min, 1, 'day')
+          max = dates.add(max, 1, 'day')
+      }
+      break;
+    }
+    this.referenceMin = min
+    this.referenceMax = max
+    this._totalMin = dates.diff(this.referenceMin, this.referenceMax, 'minutes')
+  },
+
+  _processTimeSlots(slots) {
+    // A method to check whether there are any timezone changes
+    // or other noteworthy things within a slot.
+    // Currently we don't have a timezone setting and so we are not able to do this processing.
+    return slots
   },
 
   render() {
     const {
-      min,
-      max,
       step,
       timeslots,
       now,
@@ -93,7 +123,6 @@ let DaySlot = React.createClass({
       culture,
       ...props
     } = this.props
-    this._totalMin = dates.diff(min, max, 'minutes')
 
     let { selecting, startSlot, endSlot } = this.state
       , style = this._slotStyle(startSlot, endSlot, 0)
@@ -103,13 +132,15 @@ let DaySlot = React.createClass({
       end: this.state.endDate
     };
 
+    const slotCollection = { start: this.referenceMin, end: this.referenceMax,
+      slots: this._processTimeSlots(this.props.slots.slice(0, this.props.slots.length)) }
+
     return (
       <TimeColumn {...props}
         className='rbc-day-slot'
         timeslots={timeslots}
+        slotCollection={slotCollection}
         now={now}
-        min={min}
-        max={max}
         step={step}
       >
         {this.renderEvents()}
@@ -127,8 +158,8 @@ let DaySlot = React.createClass({
 
   renderEvents() {
     let {
-      events, step, min, culture, eventPropGetter
-      , selected, eventTimeRangeFormat, eventComponent
+      events, culture, eventPropGetter
+      , selected, eventTimeRangeFormat, timeGutterFormat, eventComponent
       , startAccessor, endAccessor, titleAccessor } = this.props;
 
     let EventComponent = eventComponent
@@ -139,8 +170,8 @@ let DaySlot = React.createClass({
     return events.map((event, idx) => {
       let start = get(event, startAccessor)
       let end = get(event, endAccessor)
-      let startSlot = positionFromDate(start, min, step);
-      let endSlot = positionFromDate(end, min, step);
+      let startSlot = positionFromDate(start, this.referenceMin);
+      let endSlot = positionFromDate(end, this.referenceMin);
 
       lastLeftOffset = Math.max(0,
         overlaps(event, events.slice(0, idx), this.props, lastLeftOffset + 1))
@@ -148,7 +179,12 @@ let DaySlot = React.createClass({
       let style = this._slotStyle(startSlot, endSlot, lastLeftOffset)
 
       let title = get(event, titleAccessor)
-      let label = localizer.format({ start, end }, eventTimeRangeFormat, culture);
+      let label
+      if (start.valueOf() != end.valueOf()) {
+        label = localizer.format({ start, end }, eventTimeRangeFormat, culture);
+      } else {
+        label = localizer.format(start, timeGutterFormat, culture);
+      }
       let _isSelected = isSelected(event, selected);
 
       if (eventPropGetter)
@@ -186,7 +222,7 @@ let DaySlot = React.createClass({
 
     let top = ((startSlot / this._totalMin) * 100);
     let bottom = ((endSlot / this._totalMin) * 100);
-    let per = leftOffset === 0 ? 0 : leftOffset * eventOffset;
+    let per = leftOffset === 0 ? 0 : (leftOffset * eventOffset) % 100;
     let rightDiff = (eventOffset / (leftOffset + 1));
 
     return {
@@ -197,9 +233,17 @@ let DaySlot = React.createClass({
     }
   },
 
-  _selectable(){
+  _selectable(backgroundClickOnly){
     let node = findDOMNode(this);
     let selector = this._selector = new Selection(()=> findDOMNode(this))
+
+    if (backgroundClickOnly) {
+      selector
+        .on('click', point => {
+          this.props.onBackgroundClick(point)
+        })
+      return
+    }
 
     let maybeSelect = (box) => {
       let onSelecting = this.props.onSelecting
@@ -220,7 +264,7 @@ let DaySlot = React.createClass({
     }
 
     let selectionState = ({ y }) => {
-      let { step, min, max } = this.props;
+      let { step } = this.props;
       let { top, bottom } = getBoundsForNode(node)
 
       let mins = this._totalMin;
@@ -229,7 +273,7 @@ let DaySlot = React.createClass({
 
       let current = (y - top) / range;
 
-      current = snapToSlot(minToDate(mins * current, min), step)
+      current = snapToSlot(minToDate(mins * current, this.referenceMin), step)
 
       if (!this.state.selecting)
         this._initialDateSlot = current
@@ -239,15 +283,20 @@ let DaySlot = React.createClass({
       if (dates.eq(initial, current, 'minutes'))
         current = dates.add(current, step, 'minutes')
 
-      let start = dates.max(min, dates.min(initial, current))
-      let end = dates.min(max, dates.max(initial, current))
+      let start = dates.max(this.referenceMin, dates.min(initial, current))
+      let end = dates.min(this.referenceMax, dates.max(initial, current))
 
+      let startDate = start, endDate = end
+      if (this.props.min != this.referenceMin) {
+        startDate = dates.merge(this.props.min, start)
+        endDate = dates.merge(this.props.min, end)
+      }
       return {
         selecting: true,
-        startDate: start,
-        endDate: end,
-        startSlot: positionFromDate(start, min, step),
-        endSlot: positionFromDate(end, min, step)
+        startDate,
+        endDate,
+        startSlot: positionFromDate(start, this.referenceMin, step),
+        endSlot: positionFromDate(end, this.referenceMin, step)
       }
     }
 
@@ -256,6 +305,7 @@ let DaySlot = React.createClass({
 
     selector
       .on('click', ({ x, y }) => {
+        this.props.onBackgroundClick && this.props.onBackgroundClick()
         this._clickTimer = setTimeout(()=> {
           this._selectSlot(selectionState({ x, y }))
         })

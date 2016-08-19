@@ -106,6 +106,9 @@ export default class TimeGrid extends Component {
   }
 
   _getTimeSlots(min, max, step) {
+    const now = new Date()
+    const nowHours = now.getHours()
+    const nowMinutes = now.getHours()
     let offset = 0
     const totalMin = dates.diff(min, max, 'minutes')
     let slots = []
@@ -114,10 +117,26 @@ export default class TimeGrid extends Component {
       const offsetMinutes = offset % 60
       const slotLabel = localizer.format(new Date(min.valueOf() + 60*1000*offset),
           this.props.timeGutterFormat, this.props.culture)
-      slots.push({offset, hours: offsetHours, minutes: offsetMinutes, totalMin, slotLabel})
+      const nextOffsetHours = Math.floor((offset + step)/60)
+      const nextOffsetMinutes = (offset + step) % 60
+      const containsNowTime = ((nowHours >= offsetHours) && (nowHours <= nextOffsetHours)) &&
+              ((nowMinutes >= offsetMinutes) && (nowMinutes < nextOffsetMinutes))
+      slots.push({offset, hours: offsetHours, minutes: offsetMinutes, slotLabel, containsNowTime})
       offset += step
     }
     return slots
+  }
+
+  _getSlotCollection(slots) {
+    const now = new Date()
+    const start = dates.merge(now, this.props.min)
+    const end = dates.merge(now, this.props.max)
+    const rangeContainsTzChange = start.getTimezoneOffset() != end.getTimezoneOffset()
+    return {
+      start,
+      end,
+      rangeContainsTzChange,
+      slots}
   }
 
   render() {
@@ -160,7 +179,7 @@ export default class TimeGrid extends Component {
     let gutterRef = ref => this._gutters[1] = ref && findDOMNode(ref);
 
     const slots = this._getTimeSlots(this.props.min, this.props.max, this.props.step)
-
+    const slotCollection = this._getSlotCollection(slots)
     return (
       <div className='rbc-time-view'>
         {
@@ -170,7 +189,7 @@ export default class TimeGrid extends Component {
           <TimeColumn
             {...this.props}
             showLabels
-            slotCollection={{start: this.props.min, end: this.props.max, slots}}
+            slotCollection={slotCollection}
             style={{ width }}
             ref={gutterRef}
             className='rbc-time-gutter'

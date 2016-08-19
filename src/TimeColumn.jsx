@@ -8,7 +8,7 @@ import TimeSlotGroup from './TimeSlotGroup'
 export default class TimeColumn extends Component {
   static propTypes = {
     step: PropTypes.number.isRequired,
-    timeslots: PropTypes.number.isRequired, // I'd like to deprecate this: It's confusing.
+    timeslots: PropTypes.number.isRequired, // I'd like to deprecate this since it's a bit confusing, replacing it with numSlotsPerGroup.
     now: PropTypes.instanceOf(Date).isRequired,
     slotCollection: PropTypes.object,
     showLabels: PropTypes.bool,
@@ -37,12 +37,15 @@ export default class TimeColumn extends Component {
   render() {
     const totalSlots = this.props.slotCollection.slots.length
     const numSlotsPerGroup = this.props.timeslots
-
     const timeslots = []
     let isNow = false
-
+    const { start, end } = this.props.slotCollection
+    const isToday = dates.inRange(this.props.now, start, end, 'day')
     for (var i = 0; i < totalSlots; i+=numSlotsPerGroup) {
       const slotSlice = this.props.slotCollection.slots.slice(i, i + numSlotsPerGroup)
+      if (isToday) {
+        isNow = slotSlice.some(slot => slot.containsNowTime)
+      }
       timeslots.push(this.renderTimeSliceGroup(i, isNow, slotSlice))
     }
 

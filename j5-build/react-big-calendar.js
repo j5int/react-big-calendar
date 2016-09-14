@@ -29005,7 +29005,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    if (viewNames.length > 1) {
 	      return viewNames.map(function (name) {
-	        return _react2.default.createElement('button', { type: 'button', key: name,
+	        return _react2.default.createElement('button', { type: 'button', key: name, id: name + '-view-button',
 	          className: (0, _classnames2.default)({ 'rbc-active': view === name }),
 	          onClick: _this.view.bind(null, name)
 	        }, messages[name]);

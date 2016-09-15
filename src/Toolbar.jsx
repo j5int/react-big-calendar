@@ -15,18 +15,21 @@ let Toolbar = React.createClass({
         <span className='rbc-btn-group'>
           <button
             type='button'
+            id='today-navigation-button'
             onClick={this.navigate.bind(null, navigate.TODAY)}
           >
             {messages.today}
           </button>
           <button
             type='button'
+            id='previous-navigation-button'
             onClick={this.navigate.bind(null, navigate.PREVIOUS)}
           >
             {messages.previous}
           </button>
           <button
             type='button'
+            id='next-navigation-button'
             onClick={this.navigate.bind(null, navigate.NEXT)}
           >
             {messages.next}

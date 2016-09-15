@@ -28982,12 +28982,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    return _react2.default.createElement('div', { className: 'rbc-toolbar' }, _react2.default.createElement('span', { className: 'rbc-btn-group' }, _react2.default.createElement('button', {
 	      type: 'button',
+	      id: 'today-navigation-button',
 	      onClick: this.navigate.bind(null, _constants.navigate.TODAY)
 	    }, messages.today), _react2.default.createElement('button', {
 	      type: 'button',
+	      id: 'previous-navigation-button',
 	      onClick: this.navigate.bind(null, _constants.navigate.PREVIOUS)
 	    }, messages.previous), _react2.default.createElement('button', {
 	      type: 'button',
+	      id: 'next-navigation-button',
 	      onClick: this.navigate.bind(null, _constants.navigate.NEXT)
 	    }, messages.next)), _react2.default.createElement('span', { className: 'rbc-toolbar-label' }, label), _react2.default.createElement('span', { className: 'rbc-btn-group' }, this.viewNamesGroup(messages)));
 	  },

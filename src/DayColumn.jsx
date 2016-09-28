@@ -180,7 +180,8 @@ let DaySlot = React.createClass({
 
       let title = get(event, titleAccessor)
       let label
-      if (start.valueOf() != end.valueOf()) {
+      if (end.valueOf() - start.valueOf() > 999) {
+	// Only display the label with a time range if the event is more than 1 second long.
         label = localizer.format({ start, end }, eventTimeRangeFormat, culture);
       } else {
         label = localizer.format(start, timeGutterFormat, culture);

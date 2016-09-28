@@ -28090,7 +28090,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	      var title = (0, _accessors.accessor)(event, titleAccessor);
 	      var label = void 0;
-	      if (start.valueOf() != end.valueOf()) {
+	      if (end.valueOf() - start.valueOf() > 999) {
+	        // Only display the label with a time range if the event is more than 1 second long.
 	        label = _localizer2.default.format({ start: start, end: end }, eventTimeRangeFormat, culture);
 	      } else {
 	        label = _localizer2.default.format(start, timeGutterFormat, culture);
